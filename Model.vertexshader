@@ -1,0 +1,53 @@
+#version 330 core
+
+layout(location = 0) in vec3 position;
+layout(location = 1) in vec3 color;
+layout(location = 2) in vec3 normal;
+layout(location = 3) in vec2 texCoord;
+layout(location = 4) in vec3 tangent;
+
+uniform mat4 MVP;
+uniform mat4 ModelMatrix;
+uniform mat4 ViewMatrix;
+
+out vec3 fragmentColor;
+out vec3 fragmentPosition;
+out vec3 NNFragmentPosition;
+
+out vec2 fragmentTXC;
+out vec3 fragmentNormal;
+out mat4 MM;
+
+uniform vec3 offsets[900];
+
+uniform int isInstancing;
+
+out mat3 localSurface2World;
+
+void main(){
+
+    vec3 mainPosition = position;
+    
+    if(isInstancing==1){
+        mainPosition = position + offsets[gl_InstanceID];
+    }
+    
+	mat3 mv = mat3(ModelMatrix);
+	mat3 ibMat = inverse(mv);
+	ibMat = transpose(ibMat);
+
+    gl_Position = MVP * vec4(mainPosition,1);
+    fragmentColor = color;
+    fragmentTXC = texCoord;
+    fragmentPosition = normalize(ModelMatrix * vec4(mainPosition,1)).xyz;
+    NNFragmentPosition = ((ModelMatrix) * vec4(mainPosition,1)).xyz;
+    //NNFragmentPosition = mainPosition;
+    //fragmentNormal = normalize(ModelMatrix * vec4(normal,0)).xyz;
+    fragmentNormal = normalize(ibMat * normal).xyz;
+    MM = ModelMatrix;
+    
+  localSurface2World[0] = normalize(vec3(ModelMatrix * vec4(tangent, 0.0)));
+  localSurface2World[2] = normalize(ibMat * normal);
+  localSurface2World[1] = normalize(cross(localSurface2World[2], localSurface2World[0]));
+
+}

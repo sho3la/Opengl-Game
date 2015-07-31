@@ -1,0 +1,50 @@
+#version 330 core
+
+// input data
+in vec3 position_worldspace;
+in vec3 normal_worldspace;
+in vec2 TexCoord;
+
+uniform vec3 LightPosition_worldspace;
+uniform vec3 EyePosition_worldspace;
+uniform vec3 ambientLight;
+uniform sampler2D myTextureSampler;
+
+
+// Ouput data
+out vec3 color;
+
+
+vec3 CalculateLight();
+
+void main()
+{
+
+	vec3 textureColor = texture( myTextureSampler, TexCoord ).rgb;
+	vec3 lightingColor = CalculateLight();
+
+	color = textureColor*lightingColor;
+}
+
+vec3 CalculateLight()
+{
+
+
+	// Diffuse light calculations.
+	vec3 lightVector = normalize(LightPosition_worldspace - position_worldspace);
+	float brightness = dot(lightVector,normal_worldspace);
+	brightness = clamp(brightness,0,1);
+	vec3 diffuseLight = vec3(brightness,brightness,brightness);
+	
+	//Specular light calculations.
+	vec3 reflectedLightVector = reflect(-lightVector,normal_worldspace);
+	vec3 eyeDirectionVector = normalize(EyePosition_worldspace - position_worldspace);
+
+	float specularity = dot(reflectedLightVector,eyeDirectionVector);
+	specularity = clamp(specularity,0,1);
+	float specularExponent = 50;
+	specularity = pow(specularity,specularExponent);
+	vec3 specularLight = vec3(specularity,specularity,specularity);
+	vec3 lightColor = ambientLight + diffuseLight + specularLight;
+	return lightColor;
+}

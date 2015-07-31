@@ -1,0 +1,100 @@
+#version 330 core
+
+in vec3 fragmentColor;
+in vec2 fragmentTXC;
+in vec3 fragmentNormal;
+in vec3 fragmentPosition;
+in mat4 MM;
+in vec3 NNFragmentPosition;
+in mat3 localSurface2World;
+
+out vec3 color;
+
+uniform sampler2D TxSampler;
+uniform sampler2D NrmSampler;
+uniform int hasNormals;
+uniform int MODE;
+uniform vec3 eyePos;
+
+//lights uniforms
+uniform vec3 playerLightPosition;
+uniform vec3 playerLightColor;
+uniform float playerLightIntensity;
+
+uniform vec3 monsterLightPosition;
+uniform vec3 monsterLightColor;
+uniform float monsterLightIntensity;
+
+struct lightComponent{
+	vec3 ambientLight,diffuseLight,specularLight;	
+};
+
+lightComponent calcPointLight(vec3 lightPosition, vec3 lightColor, float intensity){
+	lightComponent res;
+	res.ambientLight = vec3(0);
+	res.diffuseLight = vec3(0);
+	res.specularLight = vec3(0);
+    
+    vec3 NFragmentNormal = normalize(fragmentNormal);
+    if(hasNormals == 1){
+        vec4 encodedNormal = texture2D(NrmSampler, fragmentTXC);
+        vec3 localCoords = 2.0 * encodedNormal.rgb - vec3(1.0);
+ 
+        NFragmentNormal = normalize(localSurface2World * localCoords);
+    }
+
+    
+	vec3 lightVector = normalize(lightPosition-NNFragmentPosition);
+
+	float lightDistance = length(lightPosition - NNFragmentPosition);
+    float attenuation = 0.2 +
+                        0.3 * lightDistance +
+                        0.4 * lightDistance * lightDistance;
+    //attenuation = 1;
+    //attenuation %= 9;
+
+	float cosine = dot(lightVector,NFragmentNormal);
+
+	res.diffuseLight = vec3(cosine);
+	res.diffuseLight *= lightColor*intensity/attenuation;
+
+	res.ambientLight = lightColor * (intensity/4) / attenuation;
+
+	vec3 reflected = reflect(-lightVector,NFragmentNormal);
+	vec3 eyeDir = normalize(eyePos-NNFragmentPosition);
+	float spec = dot(reflected,eyeDir);
+
+	res.specularLight = vec3(spec)*lightColor*intensity/attenuation;
+	res.specularLight = clamp(res.specularLight,0,1);
+
+	return res;
+    
+    //float lightDistance = length(lightDirection);
+    //float attenuation = smoothstep(2,0,lightDistance);
+    
+}
+
+void main(){
+    //TODO : send the position from vertex shader
+    if(MODE == 0){
+        color = fragmentColor;
+    }else if(MODE == 1){
+        color = texture(TxSampler,fragmentTXC).rgb;
+    }else if(MODE == 2){
+        color = texture(TxSampler,fragmentTXC).rgb + fragmentColor;
+    }
+
+    vec3 ambientLight,diffuseLight,specularLight;
+    lightComponent playerLight = calcPointLight(playerLightPosition,playerLightColor,playerLightIntensity);
+
+    lightComponent monsterLight = calcPointLight(monsterLightPosition, monsterLightColor,monsterLightIntensity);
+
+    ambientLight = playerLight.ambientLight + monsterLight.ambientLight;
+    diffuseLight = playerLight.diffuseLight + monsterLight.diffuseLight;
+    specularLight = playerLight.specularLight + monsterLight.specularLight;
+
+    vec3 finalLight = ambientLight + diffuseLight + specularLight;
+    //finalLight = clamp(finalLight,0,1);
+    color *= finalLight;
+    //color = vec4(1,1,1,1);
+}

@@ -1,0 +1,37 @@
+#version 330 core
+
+
+// Input vertex data, different for all executions of this shader.
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec2 texCoord;
+layout(location = 2) in vec3 vertexNormal_modelspace;
+layout(location = 3) in vec3 nextPosition_modelspace;
+layout(location = 4) in vec3 nextNormal_modelspace;
+
+
+// Values that stay constant for the whole mesh.
+uniform mat4 VP;
+uniform mat4 ModelMatrix;
+uniform float Interpolation;
+
+//Textures
+out vec2 TexCoord;
+out vec3 normal_worldspace;
+out vec3 position_worldspace;
+void main(){
+
+	// Output position of the vertex, in clip space : MVP * position
+	vec3 interpolatedPosition =  vertexPosition_modelspace;
+	vec3 interpolatedNormal = vertexNormal_modelspace;
+	if(Interpolation >= 0.0f)
+	{
+		interpolatedPosition += (nextPosition_modelspace - vertexPosition_modelspace)*Interpolation;
+		interpolatedNormal += (nextNormal_modelspace - vertexNormal_modelspace)*Interpolation;
+	}
+
+	gl_Position =  VP * ModelMatrix *vec4(interpolatedPosition,1);
+	position_worldspace = vec3(ModelMatrix * vec4(interpolatedPosition,1));
+	normal_worldspace = normalize(vec3(ModelMatrix * vec4(interpolatedNormal,0)));
+	TexCoord = texCoord;
+}
+
